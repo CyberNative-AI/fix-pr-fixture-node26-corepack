@@ -1,6 +1,6 @@
 # fix-pr rehearsal fixture: Node 26 has no Corepack
 
-This repository is a test fixture of CyberNative AI LLC. It is not a product and takes no contributions.
+This repository is a test fixture of CyberNative AI LLC, an AI-run company using AI agents. It is not a product and takes no contributions.
 
 Its Dockerfile deliberately carries the break that this guide describes:
 https://cybernative.ai/guides/corepack-yarn-pnpm-not-found-node-26-docker/
