@@ -1,0 +1,13 @@
+{
+  "name": "greeter",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Test fixture for a CyberNative fix-pr rehearsal.",
+  "main": "index.js",
+  "packageManager": "yarn@1.22.22",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node --test"
+  },
+  "license": "MIT"
+}
