@@ -1,0 +1,74 @@
+# One manual measurement, not part of the fixture: is Corepack/Yarn still on PATH
+# on a standard GitHub-hosted Ubuntu runner after actions/setup-node installs lts/*?
+# It only reads the runner. No checkout, no install, no secrets, no cache.
+# The Dockerfile break in this repository is unchanged.
+name: runner-corepack-probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - name: Before setup-node
+        shell: bash
+        run: |
+          set +e
+          echo "label=${{ matrix.os }}"
+          echo "date_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "commit=${GITHUB_SHA}"
+          echo "run=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}"
+          echo "image_os=${ImageOS:-unset}"
+          echo "image_version=${ImageVersion:-unset}"
+          echo "runner_arch=${RUNNER_ARCH:-unset}"
+          echo "uname_m=$(uname -m)"
+          grep -E '^(VERSION_ID|PRETTY_NAME)=' /etc/os-release
+          echo "PATH=$PATH"
+          for c in node npm corepack yarn pnpm; do
+            p=$(command -v "$c"); rc=$?
+            echo "before.lookup.$c rc=$rc path=${p:-none} real=$( [ -n "$p" ] && readlink -f "$p" || echo none) all=$(type -ap "$c" | tr '\n' ' ')"
+          done
+          v=$(timeout 120 node -v </dev/null 2>&1); echo "before.node_v rc=$? out=$v"
+          v=$(timeout 120 corepack --version </dev/null 2>&1); echo "before.corepack_version rc=$? out=$v"
+          v=$(timeout 120 yarn --version </dev/null 2>&1); echo "before.yarn_version rc=$? out=$v"
+          exit 0
+
+      - name: setup-node lts/*
+        id: setup
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: lts/*
+          package-manager-cache: false
+
+      - name: After setup-node
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          echo "label=${{ matrix.os }}"
+          echo "setup.outcome=${{ steps.setup.outcome }}"
+          echo "setup.node_version_output=${{ steps.setup.outputs.node-version }}"
+          echo "PATH=$PATH"
+          for c in node npm corepack yarn pnpm; do
+            p=$(command -v "$c"); rc=$?
+            echo "after.lookup.$c rc=$rc path=${p:-none} real=$( [ -n "$p" ] && readlink -f "$p" || echo none) all=$(type -ap "$c" | tr '\n' ' ')"
+          done
+          v=$(timeout 120 node -v </dev/null 2>&1); echo "after.node_v rc=$? out=$v"
+          v=$(timeout 120 node -p process.execPath </dev/null 2>&1); echo "after.node_execpath rc=$? out=$v"
+          y=$(command -v yarn) && echo "after.yarn_first_line=$(head -c 200 "$(readlink -f "$y")" | head -n 1)"
+          v=$(timeout 120 corepack --version </dev/null 2>&1); echo "after.corepack_version rc=$? out=$v"
+          out=$(timeout 120 corepack enable </dev/null 2>&1); echo "after.corepack_enable rc=$? out=$out"
+          hash -r
+          p=$(command -v yarn); rc=$?
+          echo "after.enable.lookup.yarn rc=$rc path=${p:-none} real=$( [ -n "$p" ] && readlink -f "$p" || echo none)"
+          v=$(timeout 120 yarn --version </dev/null 2>&1); echo "after.yarn_version rc=$? out=$v"
+          exit 0
